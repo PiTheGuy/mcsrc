@@ -4,6 +4,8 @@ import { useObservable } from "../../utils/UseObservable";
 import { minecraftVersionIds } from "../../logic/MinecraftApi";
 import { getLeftDiff, getRightDiff } from "../../logic/Diff";
 
+const versionSelectStyle = { minWidth: 128 };
+
 const DiffVersionSelection = () => {
     const versions = useObservable(minecraftVersionIds);
     const leftVersion = useObservable(getLeftDiff().selectedVersion);
@@ -17,6 +19,7 @@ const DiffVersionSelection = () => {
     return (
         <Flex align="center" gap={8}>
             <Select
+                style={versionSelectStyle}
                 value={leftVersion || versions?.[1]} // Select second version as default for left side
                 onChange={(v) => {
                     getLeftDiff().selectedVersion.next(v);
@@ -39,6 +42,7 @@ const DiffVersionSelection = () => {
                 />
             </Tooltip>
             <Select
+                style={versionSelectStyle}
                 value={rightVersion || versions?.[0]}
                 onChange={(v) => {
                     getRightDiff().selectedVersion.next(v);
