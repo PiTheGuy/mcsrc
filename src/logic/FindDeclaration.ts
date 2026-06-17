@@ -1,27 +1,28 @@
 import {jarIndex} from "../workers/jar-index/client.ts";
 import {firstValueFrom, from, map, switchMap} from "rxjs";
 import type {MemberData} from "../workers/jar-index/types.ts";
-import type {Token} from "./Tokens.ts";
+import type {MemberToken, Token} from "./Tokens.ts";
 import {type ClassNode, inheritanceIndex} from "./Inheritance.ts";
+import type {ClassName} from "../utils/Names.ts";
 
 const memberDataResults = jarIndex.pipe(
     switchMap(index => from(parseMemberData(index.getMemberData())))
 );
 
 async function parseMemberData(memberData: Promise<MemberData[]>) {
-    let map = new Map<string, MemberData>();
+    let map = new Map<ClassName, MemberData>();
     for (let memberDataEntry of await memberData) {
         map.set(memberDataEntry.className, memberDataEntry);
     }
     return map;
 }
 
-function getClassNode(className: string) : Promise<ClassNode> {
+function getClassNode(className: ClassName) : Promise<ClassNode> {
     let classNode = inheritanceIndex.pipe(map(index => index.addClass(className)));
     return firstValueFrom(classNode);
 }
 
-export async function findDeclaration(token : Token) {
+export async function findDeclaration(token: Token): Promise<ClassName> {
     if ("descriptor" in token) {
         const memberData = await firstValueFrom(memberDataResults);
         let classNode = await getClassNode(token.className);
@@ -53,7 +54,7 @@ function getAllAncestors(node: ClassNode) : ClassNode[] {
     return ancestors;
 }
 
-function classHasMember(memberData: Map<string, MemberData>, className: string, memberName: string, memberDescriptor : string, memberType: "field" | "method") : boolean {
+function classHasMember(memberData: Map<ClassName, MemberData>, className: ClassName, memberName: string, memberDescriptor: string, memberType: MemberToken["type"]): boolean {
     let classMemberData = memberData.get(className);
     if (classMemberData) {
         let members = memberType === "field" ? classMemberData.fields : classMemberData.methods;

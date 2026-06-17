@@ -5,17 +5,18 @@ import { getTokenLocation } from '../logic/Tokens';
 import { selectedFile } from "../logic/State";
 import type { DecompileResult } from "../workers/decompile/types";
 import { BehaviorSubject } from "rxjs";
+import { classNameFromClassFilePath, outerClassFilePath, toClassFilePath, type ClassFilePath } from "../utils/Names";
 import { findDeclaration } from "../logic/FindDeclaration.ts";
 
 export type TokenJumpTarget = {
-    className: string;
+    className: ClassFilePath;
     targetType: 'method' | 'field' | 'class';
     target: string;
 };
 
 export const pendingTokenJump = new BehaviorSubject<TokenJumpTarget | null>(null);
 
-export function requestTokenJump(className: string, targetType: 'method' | 'field' | 'class', target: string) {
+export function requestTokenJump(className: ClassFilePath, targetType: 'method' | 'field' | 'class', target: string) {
     pendingTokenJump.next({ className, targetType, target });
 }
 
@@ -86,8 +87,8 @@ export function createDefinitionProvider(
                 if (targetOffset >= token.start && targetOffset <= token.start + token.length) {
                     const targetClass = await findDeclaration(token);
 
-                    const className = targetClass + ".class";
-                    const baseClassName = targetClass.split('$')[0] + ".class";
+                    const className = toClassFilePath(targetClass);
+                    const baseClassName = outerClassFilePath(className);
                     console.log(`Found token for definition: ${className} at offset ${token.start}`);
 
                     if (classList && (classList.includes(className) || classList.includes(baseClassName))) {
@@ -127,8 +128,8 @@ export function createEditorOpener(
                 return false;
             }
 
-            const className = resource.path.substring(1);
-            const baseClassName = className.includes('$') ? className.split('$')[0] + ".class" : className;
+            const className = toClassFilePath(resource.path.substring(1));
+            const baseClassName = className.includes('$') ? outerClassFilePath(className) : className;
 
             const jumpInSameFile = baseClassName === selectedFile.value;
             const fragment = resource.fragment.split(":") as [string, ...string[]];
@@ -154,7 +155,7 @@ export function createEditorOpener(
                 }
             } else if (baseClassName != className) {
                 // Handle inner class navigation
-                const innerClassName = className.replace('.class', '');
+                const innerClassName = classNameFromClassFilePath(className);
                 // Always use the queue, even for same-file jumps
                 requestTokenJump(baseClassName, 'class', innerClassName);
                 if (!jumpInSameFile) {
