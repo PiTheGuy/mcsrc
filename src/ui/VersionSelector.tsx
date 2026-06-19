@@ -62,7 +62,6 @@ function VersionSelector({
             <Flex gap={6}>
                 <Input
                     allowClear
-                    autoFocus
                     aria-label="Search Minecraft versions"
                     placeholder="Search versions"
                     prefix={<SearchOutlined />}
