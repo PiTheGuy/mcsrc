@@ -5,6 +5,7 @@ import { writeZip } from "./zip";
 import type { RemapClassJob, RemapWorker, RemapWorkerResult, RemapWorkerStats } from "./worker";
 
 const batchSize = 8;
+const maxWorkers = 8;
 
 function createWorker() {
     const worker = new Worker(new URL("./worker.ts", import.meta.url), { type: "module", name: "jar-remapper" });
@@ -21,7 +22,7 @@ export async function remapMinecraftJar(
     onProgress?: (percent: number) => void,
 ): Promise<Blob> {
     const startTime = performance.now();
-    const threads = Math.max(1, (navigator.hardwareConcurrency || 4) - 1);
+    const threads = Math.max(1, Math.min(maxWorkers, (navigator.hardwareConcurrency || 4) - 1));
     const workers = Array.from({ length: threads }, () => createWorker());
 
     try {

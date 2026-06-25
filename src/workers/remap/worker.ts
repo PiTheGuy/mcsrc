@@ -149,6 +149,8 @@ export class RemapWorker {
             let time = performance.now();
             remapper.loadMappings(await mappingsBlob.arrayBuffer());
             remapper.loadRemapIndex(remapIndex.classData, remapIndex.memberData);
+            remapIndex.classData.length = 0;
+            remapIndex.memberData.length = 0;
             stats.loadMappingsMs = performance.now() - time;
 
             time = performance.now();
