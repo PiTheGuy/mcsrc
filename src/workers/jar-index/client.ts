@@ -88,14 +88,14 @@ export class JarIndex {
         this.indexPromise = null;
     }
 
-    private async indexJar(): Promise<void> {
+    private async indexJar(includeReferences: boolean): Promise<void> {
         if (!this.indexPromise) {
-            this.indexPromise = this.performIndexing();
+            this.indexPromise = this.performIndexing(includeReferences);
         }
         return this.indexPromise;
     }
 
-    private async performIndexing(): Promise<void> {
+    private async performIndexing(includeReferences: boolean): Promise<void> {
         try {
             const startTime = performance.now();
 
@@ -126,7 +126,7 @@ export class JarIndex {
                             return indexed;
                         }
 
-                        await worker.c.indexBatch(batch);
+                        await worker.c.indexBatch(batch, includeReferences);
                         completed += batch.length;
 
                         indexProgress.next(Math.round((completed / classNames.length) * 100));
@@ -151,7 +151,7 @@ export class JarIndex {
     }
 
     async getReference(key: ReferenceKey): Promise<ReferenceString[]> {
-        await this.indexJar();
+        await this.indexJar(true);
 
         let results: Promise<ReferenceString[]>[] = [];
 
@@ -163,7 +163,7 @@ export class JarIndex {
     }
 
     async getMemberData(): Promise<MemberData[]> {
-        await this.indexJar();
+        await this.indexJar(true);
 
         let results: Promise<MemberData[]>[] = [];
 
@@ -185,7 +185,7 @@ export class JarIndex {
         }
 
         try {
-            await this.indexJar();
+            await this.indexJar(false);
 
             let results: Promise<ClassDataString[]>[] = [];
             for (const worker of this.workers) {

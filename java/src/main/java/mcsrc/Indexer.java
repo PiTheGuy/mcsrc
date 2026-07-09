@@ -15,6 +15,7 @@ import org.objectweb.asm.commons.ClassRemapper;
 import org.objectweb.asm.commons.Remapper;
 import org.objectweb.asm.util.Textifier;
 import org.objectweb.asm.util.TraceClassVisitor;
+import org.teavm.jso.JSBody;
 import org.teavm.jso.JSExport;
 import org.teavm.jso.core.JSMap;
 import org.teavm.jso.core.JSString;
@@ -36,11 +37,15 @@ public class Indexer {
     private static Remapper mappingTreeRemapper;
 
     @JSExport
-    public static void index(ArrayBuffer arrayBuffer) {
+    public static void index(ArrayBuffer arrayBuffer, boolean includeReferences) {
         byte[] bytes = new Int8Array(arrayBuffer).copyToJavaArray();
         ClassReader classReader = new ClassReader(bytes);
-        // Use SKIP_FRAMES for faster parsing - we don't need stack map frames for indexing
-        classReader.accept(new ClassIndexVisitor(ASM_VERSION), ClassReader.SKIP_FRAMES);
+        classReader.accept(new ClassIndexVisitor(ASM_VERSION), ClassReader.SKIP_CODE | ClassReader.SKIP_DEBUG | ClassReader.SKIP_FRAMES);
+
+        if (includeReferences) {
+            // Use SKIP_FRAMES for faster parsing - we don't need stack map frames for indexing
+            classReader.accept(new ReferenceIndexVisitor(ASM_VERSION), ClassReader.SKIP_FRAMES);
+        }
     }
 
     @JSExport
@@ -80,12 +85,19 @@ public class Indexer {
         return result.toString();
     }
 
-    public static void addReference(String key, String value) {
+    public static void addReference(String key, Entry.Member value) {
         if (!isMinecraft(key)) {
             return;
         }
 
-        references.computeIfAbsent(key, k -> new HashSet<>()).add(value);
+        if (key.contains(":")) {
+            String[] parts = key.split(":", 3);
+            String newCaller = findInheritedMemberOwner(parts[0], parts[1], parts[2], value instanceof Entry.Method);
+            if (newCaller != null) {
+                key = newCaller + ":" + parts[1] + ":" + parts[2];
+            }
+        }
+        references.computeIfAbsent(key, k -> new HashSet<>()).add(value.reference());
         referenceSize++;
     }
 
@@ -235,6 +247,59 @@ public class Indexer {
         return array;
     }
 
+    private static String findInheritedMemberOwner(String owner, String name, String descriptor, boolean method) {
+        ArrayDeque<String> queue = new ArrayDeque<>();
+        Set<String> visited = new HashSet<>();
+        addParents(owner, queue);
+
+        while (!queue.isEmpty()) {
+            String parent = queue.removeFirst();
+
+            if (!visited.add(parent)) {
+                continue;
+            }
+
+            ClassMemberInfo memberInfo = memberData.get(parent);
+
+            if (memberInfo != null) {
+                String member = "%s:%s:%s".formatted(parent, name, descriptor);
+
+                if ((method ? memberInfo.methods : memberInfo.fields).contains(member)) {
+                    return parent;
+                }
+            }
+
+            addParents(parent, queue);
+        }
+
+        return null;
+    }
+
+    private static boolean hasMember(String owner, String name, String descriptor, boolean method) {
+        ClassMemberInfo memberInfo = memberData.get(owner);
+
+        if (memberInfo == null) {
+            return false;
+        }
+
+        String member = "%s:%s:%s".formatted(owner, name, descriptor);
+        return (method ? memberInfo.methods : memberInfo.fields).contains(member);
+    }
+
+    private static void addParents(String owner, ArrayDeque<String> queue) {
+        ClassInheritanceInfo info = inheritanceData.get(owner);
+
+        if (info == null) {
+            return;
+        }
+
+        if (info.superName != null) {
+            queue.add(info.superName);
+        }
+
+        Collections.addAll(queue, info.interfaces);
+    }
+
     private static class ClassInheritanceInfo {
         String className;
         String superName;
@@ -354,57 +419,5 @@ public class Indexer {
             return mapping == null ? null : mapping.getName(toNamespace);
         }
 
-        private String findInheritedMemberOwner(String owner, String name, String descriptor, boolean method) {
-            ArrayDeque<String> queue = new ArrayDeque<>();
-            Set<String> visited = new HashSet<>();
-            addParents(owner, queue);
-
-            while (!queue.isEmpty()) {
-                String parent = queue.removeFirst();
-
-                if (!visited.add(parent)) {
-                    continue;
-                }
-
-                ClassMemberInfo memberInfo = memberData.get(parent);
-
-                if (memberInfo != null) {
-                    String member = "%s:%s:%s".formatted(parent, name, descriptor);
-
-                    if ((method ? memberInfo.methods : memberInfo.fields).contains(member)) {
-                        return parent;
-                    }
-                }
-
-                addParents(parent, queue);
-            }
-
-            return null;
-        }
-
-        private static boolean hasMember(String owner, String name, String descriptor, boolean method) {
-            ClassMemberInfo memberInfo = memberData.get(owner);
-
-            if (memberInfo == null) {
-                return false;
-            }
-
-            String member = "%s:%s:%s".formatted(owner, name, descriptor);
-            return (method ? memberInfo.methods : memberInfo.fields).contains(member);
-        }
-
-        private static void addParents(String owner, ArrayDeque<String> queue) {
-            ClassInheritanceInfo info = inheritanceData.get(owner);
-
-            if (info == null) {
-                return;
-            }
-
-            if (info.superName != null) {
-                queue.add(info.superName);
-            }
-
-            Collections.addAll(queue, info.interfaces);
-        }
     }
 }

@@ -4,6 +4,7 @@ import type { DecompileResult } from "../workers/decompile/types";
 import { openInheritanceViewTab } from "../logic/tabs";
 import { dottedClassNameFromClassName, type ClassFilePath, type ClassName } from "../utils/Names";
 import type { ReferenceKey } from "../workers/jar-index/types";
+import {findOwner} from "../logic/FindOwner.ts";
 
 export const IS_DEFINITION_CONTEXT_KEY_NAME = "is_definition";
 
@@ -140,16 +141,17 @@ export function createFindAllReferencesAction(
                 messageApi.error("Failed to find token for references.");
                 return;
             }
+            const className = await findOwner(token);
 
             switch (token.type) {
                 case "class":
-                    referenceQueryNext(token.className);
+                    referenceQueryNext(className);
                     break;
                 case "field":
-                    referenceQueryNext(`${token.className}:${token.name}:${token.descriptor}`);
+                    referenceQueryNext(`${className}:${token.name}:${token.descriptor}`);
                     break;
                 case "method":
-                    referenceQueryNext(`${token.className}:${token.name}:${token.descriptor}`);
+                    referenceQueryNext(`${className}:${token.name}:${token.descriptor}`);
                     break;
                 default:
                     messageApi.error("Token is not a class, field, or method.");

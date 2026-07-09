@@ -6,7 +6,7 @@ import { selectedFile } from "../logic/State";
 import type { DecompileResult } from "../workers/decompile/types";
 import { BehaviorSubject } from "rxjs";
 import { classNameFromClassFilePath, outerClassFilePath, toClassFilePath, type ClassFilePath } from "../utils/Names";
-import { findDeclaration } from "../logic/FindDeclaration.ts";
+import { findOwner } from "../logic/FindOwner.ts";
 
 export type TokenJumpTarget = {
     className: ClassFilePath;
@@ -85,7 +85,7 @@ export function createDefinitionProvider(
                 }
 
                 if (targetOffset >= token.start && targetOffset <= token.start + token.length) {
-                    const targetClass = await findDeclaration(token);
+                    const targetClass = await findOwner(token);
 
                     const className = toClassFilePath(targetClass);
                     const baseClassName = outerClassFilePath(className);

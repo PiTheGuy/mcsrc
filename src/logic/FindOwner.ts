@@ -22,7 +22,7 @@ function getClassNode(className: ClassName) : Promise<ClassNode> {
     return firstValueFrom(classNode);
 }
 
-export async function findDeclaration(token: Token): Promise<ClassName> {
+export async function findOwner(token: Token): Promise<ClassName> {
     if ("descriptor" in token) {
         const memberData = await firstValueFrom(memberDataResults);
         let classNode = await getClassNode(token.className);

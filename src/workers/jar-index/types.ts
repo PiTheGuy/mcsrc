@@ -49,7 +49,7 @@ export class JarIndexer {
         this.#jar = await openJar(name, blob);
     };
 
-    indexBatch = async (classNames: ClassFilePath[]): Promise<void> => {
+    indexBatch = async (classNames: ClassFilePath[], includeReferences: boolean): Promise<void> => {
         if (!this.#jar) {
             throw new Error("Jar not set in worker");
         }
@@ -67,7 +67,7 @@ export class JarIndexer {
         const indexer = await this.getIndexer();
 
         for (const arrayBuffer of arrayBufferPromises) {
-            indexer.index(await arrayBuffer);
+            indexer.index(await arrayBuffer, includeReferences);
         }
     };
 
@@ -106,7 +106,7 @@ export class JarIndexer {
 }
 
 interface Indexer {
-    index(data: ArrayBufferLike): void;
+    index(data: ArrayBufferLike, includeReferences: boolean): void;
     getReference(key: ReferenceKey): [ReferenceString];
     getReferenceSize(): number;
     getBytecode(classData: ArrayBufferLike[]): string;
