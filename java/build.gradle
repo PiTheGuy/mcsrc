@@ -60,14 +60,13 @@ teavm {
     }
     js {
         moduleType = org.teavm.gradle.api.JSModuleType.ES2015
-        obfuscated = false
-        debugInformation = true
+//         obfuscated = false
         optimization = org.teavm.gradle.api.OptimizationLevel.AGGRESSIVE
     }
     wasmGC {
         addedToWebApp = true
         modularRuntime = true
-        obfuscated = false
+//         obfuscated = false
         optimization = org.teavm.gradle.api.OptimizationLevel.AGGRESSIVE
     }
 }
